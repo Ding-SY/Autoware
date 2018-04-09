@@ -823,6 +823,26 @@ static void odom_callback(const nav_msgs::Odometry::ConstPtr& input)
 
   odom = *input;
   odom_calc(input->header.stamp);
+
+  tf::Quaternion ndt_q;
+  ndt_q.setRPY(predict_pose_odom.roll, predict_pose_odom.pitch, predict_pose_odom.yaw);
+
+  ndt_pose_msg.header.frame_id = "/map";
+  ndt_pose_msg.header.stamp = input->header.stamp;
+  ndt_pose_msg.pose.position.x = predict_pose_odom.x;
+  ndt_pose_msg.pose.position.y = predict_pose_odom.y;
+  ndt_pose_msg.pose.position.z = predict_pose_odom.z;
+  ndt_pose_msg.pose.orientation.x = ndt_q.x();
+  ndt_pose_msg.pose.orientation.y = ndt_q.y();
+  ndt_pose_msg.pose.orientation.z = ndt_q.z();
+  ndt_pose_msg.pose.orientation.w = ndt_q.w();
+  ndt_pose_pub.publish(ndt_pose_msg);
+
+  tf::Transform transform;
+  transform.setOrigin(tf::Vector3(predict_pose_odom.x, predict_pose_odom.y, predict_pose_odom.z));
+  transform.setRotation(ndt_q);
+  static tf::TransformBroadcaster br;
+  br.sendTransform(tf::StampedTransform(transform, input->header.stamp, "/map", "/base_link"));
 }
 
 static void imuUpsideDown(const sensor_msgs::Imu::Ptr input)
@@ -1485,7 +1505,7 @@ void* thread_func(void* args)
     map_callback_queue.callAvailable(ros::WallDuration());
     ros_rate.sleep();
   }
-  
+
   return nullptr;
 }
 
